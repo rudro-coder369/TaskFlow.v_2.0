@@ -1,0 +1,310 @@
+class InitialData {
+  static final Map<String, dynamic> academics = {
+    'math': {
+      'name': "Math",
+      'chapters': [
+        "বাস্তব সংখ্যা", "সেট ও ফাংশন", "বীজগাণিতিক রাশি", "সূচক ও লগারিদম", 
+        "এক চলকবিশিষ্ট সমীকরণ", "রেখা, কোণ ও ত্রিভুজ", "ব্যবহারিক জ্যামিতি", 
+        "বৃত্ত", "ত্রিকোণমিতিক অনুপাত", "দূরত্ব ও উচ্চতা", "বীজগাণিতিক অনুপাত ও সমানুপাত", 
+        "দুই চলক বিশিষ্ট সরল সহ-সমীকরণ", "সসীম ধারা", "অনুপাত, সদৃশতা ও প্রতিসমতা", 
+        "ক্ষেত্রফল সম্পর্কিত উপপাদ্য", "পরিমিতি", "পরিসংখ্যান"
+      ],
+      'groups': ["science", "arts"]
+    },
+    'hmath': {
+      'name': "Higher Math",
+      'chapters': [
+        "সেট ও ফাংশন", "বীজগাণিতিক রাশি", "জ্যামিতি", "জ্যামিতিক অঙ্কন", 
+        "সমীকরণ", "অসমতা", "অসীম ধারা", "ত্রিকোণমিতি", "সূচকীয় ও লগারিদমীয় ফাংশন", 
+        "দ্বিপদী বিস্তৃতি", "স্থানাঙ্ক জ্যামিতি", "সমতলীয় ভেক্টর", "ঘন জ্যামিতি", "সম্ভাবনা"
+      ],
+      'groups': ["science"]
+    },
+    'phys': {
+      'name': "Physics",
+      'chapters': [
+        "ভৌত রাশি ও পরিমাপ", "গতি", "বল", "কাজ, ক্ষমতা ও শক্তি", 
+        "পদার্থের অবস্থা ও চাপ", "বস্তুর উপর তাপের প্রভাব", "তরঙ্গ ও শব্দ", 
+        "আলোর প্রতিফলন", "আলোর প্রতিসরন", "স্থির বিদ্যুৎ", "চল বিদ্যুৎ", 
+        "বিদ্যুৎ এর চৌম্বক ক্রিয়া", "তেজস্ক্রিয়তা ও ইলেক্ট্রনিক্স"
+      ],
+      'groups': ["science"]
+    },
+    'chem': {
+      'name': "Chemistry",
+      'chapters': [
+        "রসায়নের ধারণা", "পদার্থের অবস্থা", "পদার্থের গঠন", "পর্যায় সারণি", 
+        "রাসায়নিক বন্ধন", "মোলের ধারণা ও রাসায়নিক গনণা", "রাসায়নিক বিক্রিয়া", 
+        "রসায়ন ও শক্তি", "এসিড-ক্ষারক সমতা", "খনিজ সম্পদ ধাতু-অধাতু", 
+        "খনিজ সম্পদ - জীবাশ্ম", "আমাদের জীবনে রসায়ন"
+      ],
+      'groups': ["science"]
+    },
+    'bio': {
+      'name': "Biology",
+      'chapters': [
+        "জীবন পাঠ", "জীবকোষ ও টিস্যু", "কোষ বিভাজন", "জীবনী শক্তি", 
+        "খাদ্য, পুষ্টি ও পরিপাক", "জীবের পরিবহণ", "গ্যাসীয় বিনিময়", "রেচন পক্রিয়া", 
+        "দৃঢ়তা প্রদান ও চলন", "সমন্বয়", "জীবের প্রজনন", "জীবের বংশগতি", 
+        "জীবের পরিবেশ", "জীবপ্রযুক্তি"
+      ],
+      'groups': ["science"]
+    },
+    'bgs': {
+      'name': "BGS",
+      'chapters': [
+        "পূর্ব বাংলার আন্দোলন ও জাতীয়তাবাদের উত্থান (১৯৪৭–১৯৭০)", "বাংলাদেশের স্বাধীনতা", 
+        "সৌরজগৎ ও ভূমন্ডল", "বাংলাদেশের ভূপ্রকৃতি ও জলবায়ু", "বাংলাদেশের নদ-নদী ও প্রাকৃতিক সম্পদ", 
+        "রাষ্ট্র, নাগরিকতা ও আইন", "বাংলাদেশ সরকারের বিভিন্ন অঙ্গ ও প্রশাসন ব্যবস্থা", 
+        "বাংলাদেশের গণতন্ত্র ও নির্বাচন ব্যবস্থা", "জাতিসংঘ ও বাংলাদেশ", 
+        "জাতীয় সম্পদ ও অর্থনৈতিক ব্যবস্থা", "অর্থনৈতিক নির্দেশকসমূহ", "অর্থ ও ব্যাংক ব্যবস্থা", 
+        "পরিবার কাঠামো ও সামাজিকীকরণ", "সামাজিক পরিবর্তন", "সামাজিক সমস্যা ও প্রতিকার"
+      ],
+      'groups': ["science"]
+    },
+    'bangla1': {
+      'name': "Bangla 1st Paper",
+      'chapters': [
+        "প্রত্যুপকার", "ফুলের বিবাহ", "সুভা", "লাইব্রেরি", "দেনাপাওনা", "বই পড়া", 
+        "অভাগীর স্বর্গ", "নিরীহ বাঙালি", "পল্লিসাহিত্য", "উদ্যম ও পরিশ্রম", 
+        "জীবনে শিল্পের স্থান", "আম আঁটির ভেঁপু", "মানুষ মুহম্মদ (স.)", "নিমগাছ", 
+        "উপেক্ষিত শক্তির উদ্বোধন", "শিক্ষা ও মনুষ্যত্ব", "প্রবাস বন্ধু", "মমতাদি", 
+        "রহমানের মা", "পয়লা বৈশাখ", "বন মানুষ", "একাত্তরের দিন গুলি", 
+        "স্বাধীনতা আমার স্বাধীনতা", "বাঁধ", "আমাদের সংস্কৃতি", "সাহিত্যের রূপ ও রীতি", 
+        "বাংলা শব্দ", "রক্তে ভেজা একুশ", "নিয়তি", "তথ্য প্রযুক্তি",
+        "বন্দনা", "হামদ", "বঙ্গবাণী", "কপোতাক্ষ নদ", "জীবন-সঙ্গীত", "প্রাণ", 
+        "জুতা-আবিষ্কার", "অন্ধবধূ", "ঝর্ণার গান", "ছায়াবাজি", "জীবন বিনিময়", 
+        "আজ সৃষ্টি-সুখের উল্লাসে", "মানুষ", "উমর ফারুক", "সেইদিন এই মাঠ", 
+        "পল্লীজননী", "একটি কাফি", "আমার দেশ", "আশা", "বৃষ্টি", "আমি কোনো আগন্তুক নই", 
+        "মে-দিনের কবিতা", "পোস্টার", "রানার", "তোমাকে পাওয়ার জন্য", "হে স্বাধীনতা", 
+        "অবাক সূর্যোদয়", "আমার পরিচয়", "বোশেখ", "চুনিয়া আমার আর্কেডিয়া", 
+        "স্বাধীনতা, এ শব্দটি কীভাবে আমাদের হলো", "সাহসী জননী বাংলা", "মিছিল"
+      ],
+      'groups': ["science", "arts"]
+    },
+    'bangla2': {
+      'name': "Bangla 2nd Paper",
+      'chapters': [
+        "ভাষা ও বাংলা ভাষা", "বাংলা ব্যাকরণ", "বাংলা ভাষার রীতি ও বিভাজন", "বর্ণমালা", 
+        "ধ্বনি ও বর্ণ", "রূপতত্ত্ব", "ব্যাকরণিক", "বর্ণের উচ্চারণ", "শব্দ ও পদ গঠন", 
+        "উপসর্গ দিয়ে শব্দ গঠন", "প্রত্যয় দিয়ে শব্দ গঠন", "সমাস দিয়ে শব্দ গঠন", 
+        "সন্ধি", "শব্দতত্ত্ব", "পারিভাষিক ও বানানিক শব্দ", "সমার্থক শব্দ", 
+        "শব্দের শ্রেণিবিভাগ", "পদবাচ্য", "সর্বনাম", "বিশেষণ", "ক্রিয়া", 
+        "ক্রিয়াবিশেষণ", "অব্যয়", "যোজক", "অন্বয়", "নির্দেশক", "বচন", "বিভক্তি", 
+        "ক্রিয়াবিভক্তি", "ক্রিয়ার কাল", "বাক্যের অংশ ও শ্রেণিবিভাগ", "বাক্যের বর্গ", 
+        "উদ্দেশ্য ও বিধেয়", "সরল, জটিল ও যৌগিক বাক্য", "কারক", "বাচ্য", "উক্তি", 
+        "যতি চিহ্ন", "বাক্যের শ্রেণি", "বাক্যগঠন", "প্রতিশব্দ", "বিপরীত শব্দ", "শব্দজোড়"
+      ],
+      'groups': ["science", "arts"]
+    },
+    'english1': {
+      'name': "English 1st Paper",
+      'chapters': [
+        "Sense of Self", "Climate Change", "Pastimes", "Events and Festivals", 
+        "Problems Around Us", "Our Neighbours", "People Who Stand Out", 
+        "World Heritage", "Unconventional Jobs", "Dreams", "English Literature", 
+        "Roots", "Loneliness", "Renewable Energy", "Media", "Graffiti"
+      ],
+      'groups': ["science", "arts"]
+    },
+    'ict': {
+      'name': "ICT",
+      'chapters': [
+        "তথ্য ও যোগাযোগ প্রযুক্তি", "কম্পিউটার রক্ষণাবেক্ষণ", "ইন্টারনেট ও ওয়েব", 
+        "লেখালেখি ও হিসাব", "মাল্টিমিডিয়া", "প্রোগ্রামিং"
+      ],
+      'groups': ["science", "arts"]
+    },
+    'islam': {
+      'name': "Islam",
+      'chapters': ["আকাইদ", "শরিয়তের উৎস", "ইবাদত", "আখলাক", "জীবনচরিত"],
+      'groups': ["science", "arts"],
+      'religion': "islam"
+    },
+    'hindu': {
+      'name': "Hindu Religion",
+      'chapters': [
+        "ব্রহ্ম, সৃষ্টি ও তার উপাসনা", "হিন্দুধর্মের উৎপত্তি ও ক্রমবিকাশ", 
+        "হিন্দুধর্মের বৈশিষ্ট্য", "হিন্দুধর্মের আচার-অনুষ্ঠান", "হিন্দুধর্মের সংস্কার", 
+        "দেব-দেবী ও পূজা", "যোগসাধনা", "ধর্মীয় নৈতিক শিক্ষা", 
+        "ধর্মীয় উপাখ্যান ও নৈতিক শিক্ষা", "ধর্মশাস্ত্র ও আচার জীবন", 
+        "অবতার ও আদর্শ জীবনচরিত"
+      ],
+      'groups': ["science", "arts"],
+      'religion': "hindu"
+    },
+    'history': {
+      'name': "History",
+      'chapters': ["ইতিহাস পরিচিতি", "বিশ্বসভ্যতা", "প্রাচীন বাংলা", "মধ্যযুগ", "ইংরেজ শাসন", "স্বাধিকার আন্দোলন", "মুক্তিযুদ্ধ"],
+      'groups': ["arts"]
+    },
+    'geography': {
+      'name': "Geography",
+      'chapters': ["ভূগোল", "মহাবিশ্ব", "মানচিত্র", "বায়ুমণ্ডল", "জীবমণ্ডল", "জনসংখ্যা", "বাংলাদেশ"],
+      'groups': ["arts"]
+    },
+    'economics': {
+      'name': "Economics",
+      'chapters': ["অর্থনীতি পরিচয়", "চাহিদা-যোগান", "বাজার", "জাতীয় আয়", "ব্যাংক", "বাংলাদেশ অর্থনীতি"],
+      'groups': ["arts"]
+    },
+    'science': {
+      'name': "General Science",
+      'chapters': ["উন্নত জীবনধারা", "পানি", "হৃদযন্ত্র", "আলো", "পলিমার", "তড়িৎ"],
+      'groups': ["arts"]
+    },
+    'agriculture': {
+      'name': "Agriculture",
+      'chapters': ["কৃষি প্রযুক্তি", "কৃষি উপকরণ", "জলবায়ু", "উৎপাদন", "বনায়ন", "সমবায়", "পারিবারিক খামার"],
+      'groups': ["arts"]
+    }
+  };
+
+  static final Map<String, dynamic> ioi = {
+  'categories': [
+
+    {
+      'name': "1. Basic Math",
+      'topics': [
+        "Integer, fraction, percentage",
+        "Parity (জোড়–বিজোড়), divisibility",
+        "Basic modular arithmetic (+, −, ×)",
+
+        "Point, line, segment, angle",
+        "Triangle, rectangle, square, circle",
+        "Coordinate geometry (x, y)",
+        "Polygon (area, inside, convex)",
+        "Euclidean distance",
+        "Vector (2D)"
+      ]
+    },
+
+    {
+      'name': "2. Discrete Structures",
+      'topics': [
+        "Set",
+        "Relation",
+        "Function",
+
+        "AND, OR, NOT",
+        "Quantifier (for all, exists)",
+
+        "Implication",
+        "Contradiction",
+        "Induction (basic)",
+
+        "Permutation",
+        "Combination",
+        "Factorial",
+        "Binomial coefficient",
+
+        "Undirected graph",
+        "Directed graph",
+        "Path",
+        "Cycle",
+        "Connected component",
+        "Tree",
+        "Rooted tree",
+        "DFS",
+        "BFS",
+        "DAG",
+        "Bipartite graph"
+      ]
+    },
+
+    {
+      'name': "3. Programming Fundamentals",
+      'topics': [
+        "Variables",
+        "Loops",
+        "Condition (if-else)",
+
+        "Function",
+        "Recursion",
+
+        "Arrays",
+        "Strings",
+
+        "Stack",
+        "Queue",
+        "Linked list (concept)",
+
+        "Graph representation (adj list)",
+
+        "Input–Output",
+        "Debugging basics"
+      ]
+    },
+
+    {
+      'name': "4. Algorithms",
+      'topics': [
+        "Big O (O(n), O(n log n), O(n²))",
+
+        "Brute force",
+        "Greedy",
+        "Divide & conquer",
+        "Dynamic Programming",
+        "Backtracking",
+
+        "Merge sort",
+        "Heap sort",
+        "Quick sort",
+
+        "Binary search",
+        "Prefix sum",
+
+        "DFS",
+        "BFS",
+
+        "Dijkstra",
+
+        "Prim",
+        "Kruskal",
+
+        "Union-Find (DSU)",
+
+        "GCD (Euclid)",
+        "Sieve of Eratosthenes",
+        "Fast exponentiation"
+      ]
+    },
+
+    {
+      'name': "5. Advanced / Gold-Level",
+      'topics': [
+        "Inclusion–Exclusion",
+        "Pigeonhole principle",
+        "Strong induction",
+        "Proof by contradiction",
+
+        "Strongly connected components (SCC)",
+        "Bridges",
+        "Articulation points",
+        "Tree centroid",
+        "Tree diameter",
+
+        "Lowest Common Ancestor (LCA)",
+        "Heavy Light Decomposition (HLD)",
+
+        "Network Flow (Ford–Fulkerson)",
+        "Bipartite Matching",
+
+        "Persistent data structures",
+
+        "Segment tree",
+        "Fenwick tree",
+
+        "Amortized analysis",
+
+        "Convex Hull (O(n log n))",
+        "Sweep line algorithm",
+        "Coordinate compression",
+
+        "Winning/losing positions",
+        "Minimax"
+      ]
+    }
+  ]
+  };
+}

@@ -1,0 +1,53 @@
+name: task_flow
+description: "A new Flutter project."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  supabase_flutter: ^2.12.2
+  lucide_icons: ^0.257.0
+  provider: ^6.1.5+1
+  shared_preferences: ^2.5.5
+  intl: ^0.20.2
+  flutter_background_service: ^5.1.0
+  confetti: ^0.8.0
+  # image_picker মুছে ফেলা হয়েছে, কারণ আমরা প্রোফাইল পিকচার আপলোড বাদ দিয়েছি
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # লোগো এবং স্প্ল্যাশ স্ক্রিনের প্যাকেজ
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.6
+
+flutter:
+  uses-material-design: true
+  
+  # Assets ফোল্ডার অ্যাড করা হলো যাতে ছবিটা অ্যাপে পায়
+  assets:
+    - assets/
+
+# ---------------------------------------------------
+# 🚀 APP LOGO CONFIGURATION
+# ---------------------------------------------------
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#F8FAFC"
+  image: "assets/icon.png"
+  android_12:
+    image: "assets/icon.png"
+    color: "#F8FAFC"
