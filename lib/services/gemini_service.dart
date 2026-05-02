@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class GeminiService {
   // 🔥 তোর Groq API Key এখানে দে
-  static const String _apiKey = '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';
+  static const String _apiKey = 'ENTER_YOUR_KEY_HERE';
 
   static Future<String> getDailyTask(String type) async {
     try {

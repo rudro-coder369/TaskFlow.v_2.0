@@ -185,7 +185,7 @@ class _MainNavigationState extends State<MainNavigation> {
           // 🔥 আইকন চেঞ্জ করে ফুড/হেলথ রিলেটেড 'অ্যাপল' (Apple) আর থিমের গ্রিন কালার দেওয়া হলো 
           if (_isLevelUpEnabled)
             IconButton(
-              icon: const Icon(LucideIcons.apple, color: Color(0xFF10A37F)),
+              icon: const Icon(LucideIcons.leaf, color: Color(0xFF10A37F)),
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const LevelUpScreen()));
               },

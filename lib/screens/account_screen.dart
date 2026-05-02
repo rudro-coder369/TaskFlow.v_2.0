@@ -275,8 +275,8 @@ class _AccountScreenState extends State<AccountScreen> {
                   ListTile(
                     // 🔥 UI Update: ডাইনামিক আইকন এবং টেক্সট
                     leading: Icon(_isSpecialUnlocked ? LucideIcons.unlock : LucideIcons.lock, color: _isSpecialUnlocked ? const Color(0xFF10A37F) : Colors.grey),
-                    title: const Text("Titan & Dev Modes", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
-                    subtitle: const Text("Titan Vault & IOI Prep Modules", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    title: const Text("Nutrition & Dev Modes", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                    subtitle: const Text("Nutrition & IOI Prep Modules", style: TextStyle(fontSize: 12, color: Colors.grey)),
                     trailing: ElevatedButton(
                       onPressed: _toggleSpecialFeatures,
                       style: ElevatedButton.styleFrom(

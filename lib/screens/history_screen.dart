@@ -82,7 +82,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
           _loading = false;
         });
 
-        // 🔥 অ্যানিমেশন বাদ দিয়ে ডাইরেক্ট JumpTo দেওয়া হলো
         if (_isFirstLoad) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (_scrollController.hasClients) {
@@ -192,15 +191,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 40, 16, 100),
+        // 🔥 FIX: Top padding reduced and descriptive text removed
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("PERFORMANCE ANALYTICS", style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-            const SizedBox(height: 4),
-            const Text("Your Focus Journey.", style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
-            const SizedBox(height: 24),
-
             Row(
               children: [
                 _buildStatCard(LucideIcons.trendingUp, const Color(0xFF10A37F), "Total Focus", _stats['total']),
@@ -217,7 +212,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Column(
                 children: [
-                  // 🔥 টাইম ফন্ট আগের মতো w300 করা হলো
                   Text(_selectedDay != null ? _formatBigTime(_selectedDay!['seconds']) : "0 min", style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w300, color: Color(0xFF1E293B))),
                   Text(_selectedDay?['label'] ?? "Select a day", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF94A3B8))),
                   
@@ -279,7 +273,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                         height: graphHeight,
                                         child: Align(
                                           alignment: Alignment.bottomCenter,
-                                          // 🔥 অ্যানিমেশন বাদ দিয়ে সিম্পল Container দেওয়া হলো
                                           child: Container(
                                             width: 30,
                                             height: day['seconds'] > 0 ? max(2.0, graphHeight * hPercent) : 2.0,
@@ -361,7 +354,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 child: const Icon(LucideIcons.calendarDays, size: 16, color: Colors.lightBlue),
                               ),
                               const SizedBox(width: 12),
-                              // 🔥 ফন্ট আবার আগের মতো শুধু bold
                               Text(log['date_str'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
                             ],
                           ),
@@ -371,7 +363,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFF1F5F9))),
-                                // 🔥 ফন্ট আবার আগের মতো bold আর monospace
                                 child: Text(_formatSimpleTime(log['study_seconds'] ?? 0), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF475569), fontFamily: 'monospace')),
                               ),
                               if ((log['self_study_seconds'] ?? 0) > 0 || (log['class_seconds'] ?? 0) > 0)
@@ -412,7 +403,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             const SizedBox(height: 12),
             Text(title.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8))),
             const SizedBox(height: 2),
-            // 🔥 ফন্ট আবার আগের মতো শুধু bold
             Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
           ],
         ),

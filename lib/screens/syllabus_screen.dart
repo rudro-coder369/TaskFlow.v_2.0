@@ -84,22 +84,11 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(top: 24, bottom: 100, left: 16, right: 16),
+        // 🔥 FIX: Top padding reduced and extra headers removed
+        padding: const EdgeInsets.only(top: 16, bottom: 100, left: 16, right: 16),
         child: Column(
           children: [
-            // Header
-            const Center(
-              child: Column(
-                children: [
-                  Text("Academic Syllabus", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5)),
-                  SizedBox(height: 8),
-                  Text("Track your progress and conquer your curriculum.", style: TextStyle(color: Color(0xFF64748B), fontSize: 14)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Group Toggle
+            // Group Toggle (ডাইরেক্ট এখান থেকে শুরু)
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(color: Colors.white.withOpacity(0.6), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.lightBlue.shade50)),
@@ -158,7 +147,6 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.lightBlue.shade50), boxShadow: [BoxShadow(color: Colors.lightBlue.shade50.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4))]),
                 child: Column(
                   children: [
-                    // 🔥 FIX: Subject Header with Expanded and Overflow handling for Premium Uniform Vibe
                     InkWell(
                       onTap: () => toggleSubject(key),
                       borderRadius: BorderRadius.circular(24),
@@ -174,7 +162,7 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                             ),
                             const SizedBox(width: 16),
                             
-                            // 2. Subject Name (Wrapped in Expanded so it never overflows)
+                            // 2. Subject Name
                             Expanded(
                               child: Row(
                                 children: [
@@ -184,8 +172,8 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                                     child: Text(
                                       subject['name'], 
                                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
-                                      maxLines: 1, // 🔥 Ensures all boxes have the exact same height
-                                      overflow: TextOverflow.ellipsis, // 🔥 Adds "..." if name is too long
+                                      maxLines: 1, 
+                                      overflow: TextOverflow.ellipsis, 
                                     ),
                                   ),
                                 ],
@@ -193,12 +181,12 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                             ),
                             const SizedBox(width: 12),
 
-                            // 3. Progress Bar (Fixed Width so it always aligns perfectly)
+                            // 3. Progress Bar 
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 SizedBox(
-                                  width: 60, // Fixed width for progress bar
+                                  width: 60, 
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
                                     child: LinearProgressIndicator(value: progressPercentage / 100, backgroundColor: Colors.lightBlue.shade50, color: const Color(0xFF10A37F), minHeight: 6),
@@ -233,7 +221,7 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                             return Container(
                               margin: const EdgeInsets.only(top: 12),
                               padding: const EdgeInsets.all(16),
-                              width: double.infinity, // Ensures full width for uniformity
+                              width: double.infinity, 
                               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.lightBlue.shade50)),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

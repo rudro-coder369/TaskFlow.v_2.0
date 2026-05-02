@@ -125,7 +125,7 @@ class _LevelUpScreenState extends State<LevelUpScreen> {
       appBar: AppBar(
         title: const Row(
           children: [
-            Icon(LucideIcons.apple, color: Color(0xFF10A37F), size: 24),
+            Icon(LucideIcons.leaf, color: Color(0xFF10A37F), size: 24),
             SizedBox(width: 8),
             Text("Fitness & Nutrition", style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, letterSpacing: -0.5, fontSize: 20)),
           ],

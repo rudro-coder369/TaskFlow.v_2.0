@@ -224,40 +224,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       backgroundColor: const Color(0xFFF8FAFC), 
       body: Column(
         children: [
-          // 🔥 REDESIGNED VERTICAL HEADER SECTION (NO ICON, LESS TOP PADDING)
+          // 🔥 FIX: Cleaned up header, just the date and time pill with less padding
           Padding(
-            padding: const EdgeInsets.only(top: 16, left: 24, right: 24, bottom: 12),
-            child: Column(
-              children: [
-                const Text(
-                  "Daily Leaderboard", 
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5)
-                ),
-                const SizedBox(height: 12),
-                
-                // COMPACT DATE & TIME PILL
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.lightBlue.shade50.withOpacity(0.6),
-                    border: Border.all(color: Colors.lightBlue.shade100),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: _isTimeSynced
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(LucideIcons.calendarClock, size: 16, color: Color(0xFF10A37F)),
-                            const SizedBox(width: 8),
-                            Text("$formattedDate  •  $formattedTime", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
-                          ],
-                        )
-                      : const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10A37F))),
-                ),
-                
-                const SizedBox(height: 12),
-                const Text("Resets daily at 12:00 AM.", style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-              ],
+            padding: const EdgeInsets.only(top: 16, bottom: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.lightBlue.shade50.withOpacity(0.6),
+                border: Border.all(color: Colors.lightBlue.shade100),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: _isTimeSynced
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(LucideIcons.calendarClock, size: 16, color: Color(0xFF10A37F)),
+                        const SizedBox(width: 8),
+                        Text("$formattedDate  •  $formattedTime", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
+                      ],
+                    )
+                  : const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10A37F))),
             ),
           ),
 

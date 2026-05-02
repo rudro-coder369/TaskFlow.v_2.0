@@ -68,7 +68,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     _generateLuckyMilestones();
     _startMidnightChecker();
 
-    // 🔥 Background থেকে `pause_ui` সিগন্যাল পেলে কাজ করবে
     final service = FlutterBackgroundService();
     _pauseSub = service.on('pause_ui').listen((event) {
       if (mounted && _activeTaskId != null) {
@@ -97,7 +96,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     }
   }
 
-  // 🔥 উন্নত Midnight Checker
   void _startMidnightChecker() {
     _midnightTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       final currentBDDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
@@ -107,16 +105,14 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     });
   }
 
-  // 🔥 বুলেটপ্রুফ Midnight Split Logic
   Future<void> _handleMidnightSplit(String newDateStr) async {
     if (_activeTaskId != null) {
       _resyncTimerFromAbsolute(autoPauseCheck: false); 
     }
-    // আগের দিনের ডাটা সেভ করা হলো
     await _syncWorkspaceToSupabase(); 
 
     setState(() {
-      _trueDateStr = newDateStr; // নতুন দিন শুরু
+      _trueDateStr = newDateStr; 
       _habits = {'water': 0, 'meal': 0, 'prayer': 0};
       _sleepChecked = false;
       _exerciseChecked = false;
@@ -131,7 +127,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
       }).toList();
 
       if (_activeTaskId != null) {
-        // যদি টাইমার চলতে থাকে, তাহলে নতুন দিনের জন্য 0 থেকে শুরু হবে
         final nowMs = DateTime.now().millisecondsSinceEpoch;
         _sessionStartMs = nowMs;
         _baseStudy = 0;
@@ -142,7 +137,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
       }
     });
     
-    // নতুন দিনের একদম ফ্রেশ ডাটাবেস এন্ট্রি
     await _syncWorkspaceToSupabase();
     _generateLuckyMilestones();
   }
@@ -222,7 +216,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
             _startTimerInterval();
           }
         } else {
-          // অ্যাপ বন্ধ অবস্থায় ২ ঘণ্টা পার হয়ে গেলে ক্লিনআপ
           _clearActiveTaskData();
           try {
             await _supabase.from('profiles').update({'active_task': null, 'task_expires_at': null}).eq('id', session.user.id);
@@ -243,7 +236,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     });
   }
 
-  // 🔥 বুলেটপ্রুফ Resync & Auto-Pause Logic
   void _resyncTimerFromAbsolute({bool autoPauseCheck = true}) {
     if (_sessionStartMs == null || _activeTaskId == null) return;
 
@@ -252,7 +244,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     if (elapsed <= 0) return;
 
     bool shouldAutoPause = false;
-    // ২ ঘণ্টা পূর্ণ হলে এক্সট্রা টাইম কাউন্ট বন্ধ করে অটো পজ সিগন্যাল দিবে
     if (autoPauseCheck && elapsed >= 7200) {
       elapsed = 7200; 
       shouldAutoPause = true;
@@ -291,7 +282,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
 
     if (elapsed > 0 && elapsed % 60 == 0) _syncWorkspaceToSupabase();
 
-    // ইনফিনিট লুপ ছাড়া ২ ঘণ্টায় পজ
     if (shouldAutoPause) {
       _handlePause(_activeTaskId!); 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("2 Hours reached. Timer auto-paused. Take a break."), backgroundColor: Colors.orange));
@@ -354,7 +344,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     _isProcessing = false;
   }
 
-  // 🔥 সিকিউর Pause Logic (Data Loss হবে না)
   Future<void> _handlePause(int taskId) async {
     if (_activeTaskId != taskId) return;
     
@@ -364,7 +353,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     _timer?.cancel();
     _timer = null;
     
-    // autoPauseCheck false দিয়েছি যাতে লুপ না হয়
     _resyncTimerFromAbsolute(autoPauseCheck: false);
 
     setState(() {
@@ -496,12 +484,12 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            // 🔥 FIX: Top padding reduced to start immediately below navbar
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
             child: Column(
               children: [
-                const Center(child: Column(children: [Text("Your Study Workspace", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))), SizedBox(height: 8), Text("Plan, focus deeply, and track habits.", style: TextStyle(color: Color(0xFF64748B), fontSize: 14))])),
-                const SizedBox(height: 24),
-
+                // 🔥 FIX: Descriptive texts and extra spaces removed
+                
                 // LIVE ROOM CARD
                 _buildCard(
                   child: Column(
@@ -510,6 +498,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                       Wrap(
                         alignment: WrapAlignment.spaceBetween,
                         crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 16, // 🔥 FIX: Spacing added so text and badge don't overlap
                         runSpacing: 12,
                         children: [
                           const Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.users, color: Colors.lightBlue, size: 20), SizedBox(width: 8), Text("Live Study Room", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))]),
