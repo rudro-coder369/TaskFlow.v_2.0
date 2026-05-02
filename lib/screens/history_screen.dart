@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -15,31 +16,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _logs = [];
   bool _loading = true;
+  bool _isFirstLoad = true; 
   
   List<Map<String, dynamic>> _graphData = [];
   Map<String, dynamic>? _selectedDay;
   Map<String, dynamic> _stats = {'total': '0m', 'avg': '0m', 'max': '0m', 'gridMax': 3.0};
   
   final ScrollController _scrollController = ScrollController();
-  RealtimeChannel? _historyChannel; // 🔥 FIX 1: Realtime Channel Variable
-  Timer? _debounceTimer; // 🔥 FIX 2: Debounce timer to prevent spamming DB
+  RealtimeChannel? _historyChannel; 
+  Timer? _debounceTimer; 
 
   @override
   void initState() {
     super.initState();
     _fetchHistory();
-    _setupRealtimeSubscription(); // 🔥 FIX 3: Start Realtime Listener
+    _setupRealtimeSubscription(); 
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
     _debounceTimer?.cancel();
-    _historyChannel?.unsubscribe(); // 🔥 Clean up listener when screen is closed
+    _historyChannel?.unsubscribe(); 
     super.dispose();
   }
 
-  // 🔥 FIX 4: Realtime Subscription Setup
   void _setupRealtimeSubscription() {
     final session = _supabase.auth.currentSession;
     if (session == null) return;
@@ -51,10 +52,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       filter: PostgresChangeFilter(
         type: PostgresChangeFilterType.eq,
         column: 'user_id',
-        value: session.user.id, // Only listen to current user's data
+        value: session.user.id,
       ),
       callback: (payload) {
-        // Prevent multiple rapid fetches using a debounce timer
         if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
         _debounceTimer = Timer(const Duration(milliseconds: 500), () {
           _fetchHistory();
@@ -82,12 +82,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
           _loading = false;
         });
 
-        // Scroll to the end (Today) ONLY on first load
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients && _loading) {
-            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-          }
-        });
+        // 🔥 অ্যানিমেশন বাদ দিয়ে ডাইরেক্ট JumpTo দেওয়া হলো
+        if (_isFirstLoad) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+            }
+          });
+          _isFirstLoad = false;
+        }
       }
     } catch (e) {
       debugPrint('History Error: $e');
@@ -144,7 +147,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     _graphData = result;
-    // Maintain selected day across refreshes
     if (_selectedDay != null) {
       final updatedSelectedDay = _graphData.firstWhere(
         (day) => day['fullDate'] == _selectedDay!['fullDate'], 
@@ -184,6 +186,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return const Scaffold(backgroundColor: Color(0xFFF8FAFC), body: Center(child: Text("ANALYZING ARCHIVES...", style: TextStyle(color: Color(0xFF10A37F), fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: 12))));
     }
 
+    const double graphHeight = 160.0;
+    const double textSpace = 28.0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
@@ -212,6 +217,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Column(
                 children: [
+                  // 🔥 টাইম ফন্ট আগের মতো w300 করা হলো
                   Text(_selectedDay != null ? _formatBigTime(_selectedDay!['seconds']) : "0 min", style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w300, color: Color(0xFF1E293B))),
                   Text(_selectedDay?['label'] ?? "Select a day", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF94A3B8))),
                   
@@ -237,30 +243,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   const SizedBox(height: 32),
                   
                   SizedBox(
-                    height: 200,
+                    height: graphHeight + textSpace,
                     child: Stack(
                       children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildGridLine(_stats['gridMax']),
-                            _buildGridLine(_stats['gridMax'] * 0.66),
-                            _buildGridLine(_stats['gridMax'] * 0.33),
-                            _buildGridLine(0),
-                            const SizedBox(height: 20),
-                          ],
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 24),
+                        _buildExactGrid(1.0, _stats['gridMax'], graphHeight, textSpace),
+                        _buildExactGrid(0.666, _stats['gridMax'] * 0.666, graphHeight, textSpace),
+                        _buildExactGrid(0.333, _stats['gridMax'] * 0.333, graphHeight, textSpace),
+                        _buildExactGrid(0.0, 0, graphHeight, textSpace),
+
+                        Positioned(
+                          top: 0, 
+                          bottom: 0, 
+                          left: 0, 
+                          right: 34, 
                           child: ListView.builder(
                             controller: _scrollController,
                             scrollDirection: Axis.horizontal,
                             itemCount: _graphData.length,
                             itemBuilder: (context, index) {
                               final day = _graphData[index];
-                              double heightPercent = (day['hoursForGrid'] / _stats['gridMax']);
-                              if (heightPercent > 1.0) heightPercent = 1.0;
-                              if (day['seconds'] > 0 && heightPercent < 0.05) heightPercent = 0.05;
+                              double hPercent = (day['hoursForGrid'] / _stats['gridMax']);
+                              if (hPercent > 1.0) hPercent = 1.0;
+                              
                               bool isSelected = _selectedDay?['fullDate'] == day['fullDate'];
 
                               return GestureDetector(
@@ -271,19 +275,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
-                                      Flexible(
-                                        child: AnimatedContainer(
-                                          duration: const Duration(milliseconds: 300),
-                                          width: 30,
-                                          height: day['seconds'] > 0 ? (176 * heightPercent) : 2,
-                                          decoration: BoxDecoration(
-                                            color: isSelected ? const Color(0xFF10A37F) : (day['seconds'] > 0 ? Colors.lightBlue.shade200 : Colors.transparent),
-                                            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                                      SizedBox(
+                                        height: graphHeight,
+                                        child: Align(
+                                          alignment: Alignment.bottomCenter,
+                                          // 🔥 অ্যানিমেশন বাদ দিয়ে সিম্পল Container দেওয়া হলো
+                                          child: Container(
+                                            width: 30,
+                                            height: day['seconds'] > 0 ? max(2.0, graphHeight * hPercent) : 2.0,
+                                            decoration: BoxDecoration(
+                                              color: isSelected ? const Color(0xFF10A37F) : (day['seconds'] > 0 ? Colors.lightBlue.shade200 : Colors.transparent),
+                                              borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                                            ),
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text(day['dayName'], style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isSelected ? const Color(0xFF10A37F) : const Color(0xFF94A3B8))),
+                                      SizedBox(
+                                        height: textSpace,
+                                        child: Center(
+                                          child: Text(
+                                            day['dayName'], 
+                                            style: TextStyle(
+                                              fontSize: 10, 
+                                              fontWeight: FontWeight.bold, 
+                                              color: isSelected ? const Color(0xFF10A37F) : const Color(0xFF94A3B8)
+                                            )
+                                          )
+                                        )
+                                      )
                                     ],
                                   ),
                                 ),
@@ -342,6 +361,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 child: const Icon(LucideIcons.calendarDays, size: 16, color: Colors.lightBlue),
                               ),
                               const SizedBox(width: 12),
+                              // 🔥 ফন্ট আবার আগের মতো শুধু bold
                               Text(log['date_str'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
                             ],
                           ),
@@ -351,6 +371,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFF1F5F9))),
+                                // 🔥 ফন্ট আবার আগের মতো bold আর monospace
                                 child: Text(_formatSimpleTime(log['study_seconds'] ?? 0), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF475569), fontFamily: 'monospace')),
                               ),
                               if ((log['self_study_seconds'] ?? 0) > 0 || (log['class_seconds'] ?? 0) > 0)
@@ -391,6 +412,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             const SizedBox(height: 12),
             Text(title.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8))),
             const SizedBox(height: 2),
+            // 🔥 ফন্ট আবার আগের মতো শুধু bold
             Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
           ],
         ),
@@ -398,13 +420,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildGridLine(double value) {
-    return Row(
-      children: [
-        Expanded(child: Container(height: 1, color: Colors.lightBlue.shade50)),
-        const SizedBox(width: 8),
-        SizedBox(width: 20, child: Text("${value.round()}h", style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500))),
-      ],
+  Widget _buildExactGrid(double percent, double val, double gHeight, double bottomSpace) {
+    return Positioned(
+      bottom: bottomSpace + (gHeight * percent) - 7, 
+      left: 0,
+      right: 0,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(child: Container(height: 1, color: Colors.blueGrey.withOpacity(0.12))),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 26, 
+            child: Text(
+              "${val.toStringAsFixed(val == val.roundToDouble() ? 0 : 1)}h", 
+              style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)
+            )
+          ),
+        ]
+      )
     );
   }
 }

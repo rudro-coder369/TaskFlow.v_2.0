@@ -23,8 +23,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'xp': 0,
     'level': 1,
     'totalHours': 0,
-    'missedYesterday': false,
-    'penalty': 0,
     'currentRank': null,
     'progress': 0.0
   };
@@ -65,11 +63,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  Map<String, dynamic> _calculateEliteStats(int totalSeconds, int penaltyXp) {
+  Map<String, dynamic> _calculateEliteStats(int totalSeconds) {
     final hours = totalSeconds / 3600;
     final level = (hours / 2).floor() + 1;
-    final rawXp = (hours * 99).floor();
-    final finalXp = (rawXp - penaltyXp) < 0 ? 0 : (rawXp - penaltyXp);
+    final finalXp = (hours * 99).floor();
 
     Map<String, dynamic> rank = {
       'name': 'Silver',
@@ -107,33 +104,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     try {
-      final myLogs = await _supabase.from('daily_logs').select('date_str, study_seconds').eq('user_id', session.user.id);
-      int totalSecs = 0;
-      Set<String> uniqueDays = {};
-      DateTime? firstDate;
-
-      for (var log in (myLogs as List)) {
-        totalSecs += int.tryParse(log['study_seconds'].toString()) ?? 0;
-        uniqueDays.add(log['date_str']);
-        List<String> parts = log['date_str'].split('/');
-        DateTime logDate = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
-        if (firstDate == null || logDate.isBefore(firstDate)) firstDate = logDate;
-      }
-
-      int missedDays = 0;
-      bool missedYesterday = false;
-      if (firstDate != null) {
-        final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-        final yesterday = today.subtract(const Duration(days: 1));
-        final yStr = DateFormat('dd/MM/yyyy').format(yesterday);
-        final diffDays = today.difference(firstDate).inDays;
-        missedDays = (diffDays - uniqueDays.length) < 0 ? 0 : (diffDays - uniqueDays.length);
-        if (!uniqueDays.contains(yStr) && diffDays > 0) missedYesterday = true;
-      }
-
-      int penalty = missedDays * 200;
-      final myStats = _calculateEliteStats(totalSecs, penalty);
-
       final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
       final lbData = await _supabase.from('daily_logs').select('user_id, study_seconds, profiles(username)').gte('created_at', thirtyDaysAgo);
 
@@ -147,6 +117,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       final sorted = userTotals.values.toList()..sort((a, b) => b['totalSecs'].compareTo(a['totalSecs']));
+      
+      int myTotalSecs = 0;
+      if (userTotals.containsKey(session.user.id)) {
+        myTotalSecs = userTotals[session.user.id]!['totalSecs'];
+      }
+      
+      final myStats = _calculateEliteStats(myTotalSecs);
 
       if (mounted) {
         setState(() {
@@ -154,8 +131,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'xp': myStats['finalXp'],
             'level': myStats['level'],
             'totalHours': myStats['hours'],
-            'missedYesterday': missedYesterday,
-            'penalty': penalty,
             'currentRank': myStats['rank'],
             'progress': myStats['progress']
           };
@@ -195,78 +170,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
     
-    final String currentDate = DateFormat('EEEE, d MMMM, yyyy').format(DateTime.now());
     final rank = _userStats['currentRank'];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 40, 16, 100),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Header
-            Row(
-              children: [
-                const Icon(LucideIcons.sparkles, size: 14, color: Color(0xFF10A37F)),
-                const SizedBox(width: 6),
-                Text(
-                  currentDate.toUpperCase(),
-                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              "Your Study Hub",
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-            ),
-            const SizedBox(height: 24),
-
-            // Penalty Card
-            if (_userStats['missedYesterday'] == true)
-              Container(
-                margin: const EdgeInsets.only(bottom: 24),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.red.shade100),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: const Icon(LucideIcons.alertOctagon, color: Colors.red, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "FOCUS STREAK BROKEN!",
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red, letterSpacing: 1),
-                          ),
-                          const SizedBox(height: 2),
-                          RichText(
-                            text: const TextSpan(
-                              style: TextStyle(fontSize: 12, color: Colors.black87),
-                              children: [
-                                TextSpan(text: "You missed yesterday. Deducted "),
-                                TextSpan(text: "200 XP", style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(text: ". Let's make it up!"),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
             // Elite Rank Card
             Container(
               width: double.infinity,
@@ -542,7 +454,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Column(
                           children: _topScholars.skip(3).map((scholar) {
                             int idx = _topScholars.indexOf(scholar) + 1;
-                            final stats = _calculateEliteStats(scholar['totalSecs'], 0);
+                            final stats = _calculateEliteStats(scholar['totalSecs']);
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.all(12),
@@ -569,8 +481,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Text(_formatStudyTime(scholar['totalSecs']), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
-                                      Text("${NumberFormat('#,###').format(stats['finalXp'])} XP", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                                      // 🔥 Time Highlighted
+                                      Text(_formatStudyTime(scholar['totalSecs']), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+                                      Text("${NumberFormat('#,###').format(stats['finalXp'])} XP", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10A37F))),
                                     ],
                                   ),
                                 ],
@@ -627,7 +540,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildLeaderCard(Map<String, dynamic> scholar, int pos, bool isFirst) {
-    final stats = _calculateEliteStats(scholar['totalSecs'], 0);
+    final stats = _calculateEliteStats(scholar['totalSecs']);
     return Container(
       padding: EdgeInsets.all(isFirst ? 20 : 12),
       decoration: BoxDecoration(
@@ -668,8 +581,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(_formatStudyTime(scholar['totalSecs']), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
-                  Text("${NumberFormat('#,###').format(stats['finalXp'])} XP", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF10A37F))),
+                  // 🔥 Time Highlighted
+                  Text(_formatStudyTime(scholar['totalSecs']), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+                  Text("${NumberFormat('#,###').format(stats['finalXp'])} XP", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10A37F))),
                 ],
               )
             ],
@@ -685,15 +599,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     decoration: BoxDecoration(color: pos == 2 ? Colors.lightBlue : Colors.grey.shade400, shape: BoxShape.circle),
                     child: Center(child: Text("$pos", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white))),
                   ),
-                  Text(_formatStudyTime(scholar['totalSecs']), style: const TextStyle(fontSize: 9, color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 12),
               Text(_formatFirstName(scholar['name']), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
               Text("Lvl ${stats['level']} | ${stats['rank']['name']}", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: stats['rank']['color'])),
-              const SizedBox(height: 8),
-              Text("${NumberFormat('#,###').format(stats['finalXp'])} XP", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+              const SizedBox(height: 12),
+              // 🔥 Time Highlighted
+              Text(_formatStudyTime(scholar['totalSecs']), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+              Text("${NumberFormat('#,###').format(stats['finalXp'])} XP", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10A37F))),
             ],
           ),
     );

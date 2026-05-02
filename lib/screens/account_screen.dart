@@ -16,7 +16,7 @@ class _AccountScreenState extends State<AccountScreen> {
   final _supabase = Supabase.instance.client;
   final _usernameController = TextEditingController();
   
-  bool _isIoiEnabled = false;
+  bool _isSpecialUnlocked = false; // 🔥 দুইটা ফিচারের জন্য একটা ভেরিয়েবল
   bool _loading = true;
   bool _isEditing = false;
   
@@ -47,7 +47,8 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _fetchUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    _isIoiEnabled = prefs.getBool('ioi_enabled') ?? false;
+    // যেকোনো একটা চেক করলেই হবে, কারণ দুইটা একসাথেই আনলক হয়
+    _isSpecialUnlocked = prefs.getBool('ioi_enabled') ?? false;
 
     final session = _supabase.auth.currentSession;
     if (session != null) {
@@ -90,8 +91,9 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  Future<void> _toggleIoiPrep() async {
-    if (!_isIoiEnabled) {
+  // 🔥 নতুন মাস্টার আনলক মেথড
+  Future<void> _toggleSpecialFeatures() async {
+    if (!_isSpecialUnlocked) {
       String code = "";
       bool success = await showDialog(
         context: context,
@@ -115,12 +117,15 @@ class _AccountScreenState extends State<AccountScreen> {
       }
     }
 
-    final newStatus = !_isIoiEnabled;
+    final newStatus = !_isSpecialUnlocked;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('ioi_enabled', newStatus);
     
-    setState(() => _isIoiEnabled = newStatus);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(newStatus ? "IOI Prep Module Unlocked! Restart app to see." : "IOI Prep Module Disabled.")));
+    // 🔥 একসাথে দুইটা মডিউল ডাটাবেসে অন/অফ হবে
+    await prefs.setBool('ioi_enabled', newStatus);
+    await prefs.setBool('level_up_enabled', newStatus);
+    
+    setState(() => _isSpecialUnlocked = newStatus);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(newStatus ? "Titan Vault & IOI Prep Unlocked! 🎉" : "Special Features Disabled.")));
   }
 
   Future<void> _handleHardReset() async {
@@ -170,14 +175,13 @@ class _AccountScreenState extends State<AccountScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      // 🚀 Exit/Back Button in AppBar
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft, color: Color(0xFF1E293B)),
-          onPressed: () => Navigator.of(context).pop(), // Go Back
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text("Settings", style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 20)),
       ),
@@ -256,7 +260,7 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ⚙️ SETTINGS ACTIONS (MOVED UP)
+            // ⚙️ SETTINGS ACTIONS
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -269,18 +273,19 @@ class _AccountScreenState extends State<AccountScreen> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: Icon(_isIoiEnabled ? LucideIcons.code : LucideIcons.lock, color: _isIoiEnabled ? const Color(0xFF10A37F) : Colors.grey),
-                    title: const Text("Developer Features", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
-                    subtitle: const Text("IOI Preparation Module", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    // 🔥 UI Update: ডাইনামিক আইকন এবং টেক্সট
+                    leading: Icon(_isSpecialUnlocked ? LucideIcons.unlock : LucideIcons.lock, color: _isSpecialUnlocked ? const Color(0xFF10A37F) : Colors.grey),
+                    title: const Text("Titan & Dev Modes", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                    subtitle: const Text("Titan Vault & IOI Prep Modules", style: TextStyle(fontSize: 12, color: Colors.grey)),
                     trailing: ElevatedButton(
-                      onPressed: _toggleIoiPrep,
+                      onPressed: _toggleSpecialFeatures,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isIoiEnabled ? Colors.grey.shade100 : const Color(0xFF10A37F), 
-                        foregroundColor: _isIoiEnabled ? Colors.grey.shade700 : Colors.white, 
+                        backgroundColor: _isSpecialUnlocked ? Colors.grey.shade100 : const Color(0xFF10A37F), 
+                        foregroundColor: _isSpecialUnlocked ? Colors.grey.shade700 : Colors.white, 
                         elevation: 0, 
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
                       ),
-                      child: Text(_isIoiEnabled ? "Disable" : "Unlock", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      child: Text(_isSpecialUnlocked ? "Disable" : "Unlock", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   Divider(color: Colors.grey.shade100, height: 1),
@@ -302,7 +307,7 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
             const SizedBox(height: 24),
 
-            // 🏆 RANK TIERS (MOVED DOWN)
+            // 🏆 RANK TIERS
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),

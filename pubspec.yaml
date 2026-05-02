@@ -19,6 +19,10 @@ dependencies:
   intl: ^0.20.2
   flutter_background_service: ^5.1.0
   confetti: ^0.8.0
+  flutter_local_notifications: ^17.1.2
+  workmanager: ^0.9.0+3
+  google_generative_ai: ^0.4.7
+  http: ^1.6.0
   # image_picker মুছে ফেলা হয়েছে, কারণ আমরা প্রোফাইল পিকচার আপলোড বাদ দিয়েছি
 
 dev_dependencies:

@@ -7,6 +7,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+
 import '../data/initial_data.dart';
 import '../providers/progress_provider.dart';
 
@@ -26,7 +28,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
   
   List<Map<String, dynamic>> _todos = [];
   
-  // TIMERS
   int _studySeconds = 0;
   int _selfStudySeconds = 0;
   int _classSeconds = 0;
@@ -55,6 +56,8 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
   String _trueDateStr = "";
   RealtimeChannel? _liveRoomChannel;
 
+  StreamSubscription? _pauseSub;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +67,14 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     _setupLiveRoomSubscription();
     _generateLuckyMilestones();
     _startMidnightChecker();
+
+    // 🔥 Background থেকে `pause_ui` সিগন্যাল পেলে কাজ করবে
+    final service = FlutterBackgroundService();
+    _pauseSub = service.on('pause_ui').listen((event) {
+      if (mounted && _activeTaskId != null) {
+        _handlePause(_activeTaskId!); 
+      }
+    });
   }
 
   @override
@@ -73,6 +84,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     _midnightTimer?.cancel();
     _customTaskController.dispose();
     _liveRoomChannel?.unsubscribe();
+    _pauseSub?.cancel();
     super.dispose();
   }
 
@@ -85,7 +97,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     }
   }
 
-  // MIDNIGHT SPLIT LOGIC
+  // 🔥 উন্নত Midnight Checker
   void _startMidnightChecker() {
     _midnightTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       final currentBDDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
@@ -95,14 +107,16 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     });
   }
 
+  // 🔥 বুলেটপ্রুফ Midnight Split Logic
   Future<void> _handleMidnightSplit(String newDateStr) async {
     if (_activeTaskId != null) {
-      _resyncTimerFromAbsolute(); 
+      _resyncTimerFromAbsolute(autoPauseCheck: false); 
     }
+    // আগের দিনের ডাটা সেভ করা হলো
     await _syncWorkspaceToSupabase(); 
 
     setState(() {
-      _trueDateStr = newDateStr;
+      _trueDateStr = newDateStr; // নতুন দিন শুরু
       _habits = {'water': 0, 'meal': 0, 'prayer': 0};
       _sleepChecked = false;
       _exerciseChecked = false;
@@ -117,6 +131,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
       }).toList();
 
       if (_activeTaskId != null) {
+        // যদি টাইমার চলতে থাকে, তাহলে নতুন দিনের জন্য 0 থেকে শুরু হবে
         final nowMs = DateTime.now().millisecondsSinceEpoch;
         _sessionStartMs = nowMs;
         _baseStudy = 0;
@@ -127,10 +142,11 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
       }
     });
     
+    // নতুন দিনের একদম ফ্রেশ ডাটাবেস এন্ট্রি
+    await _syncWorkspaceToSupabase();
     _generateLuckyMilestones();
   }
 
-  // DATABASE LIVE ROOM
   Future<void> _fetchLiveUsers() async {
     final nowIso = DateTime.now().toUtc().toIso8601String();
     try {
@@ -148,7 +164,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     ).subscribe();
   }
 
-  // LUCKY MILESTONES
   Future<void> _generateLuckyMilestones() async {
     final prefs = await SharedPreferences.getInstance();
     final today = DateFormat('dd/MM/yyyy').format(DateTime.now());
@@ -168,7 +183,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     setState(() => _dailyMilestones = currentMilestones);
   }
 
-  // INITIALIZE WORKSPACE
   Future<void> _initWorkspace() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() => _activeGroup = prefs.getString('academic_group') ?? 'science');
@@ -208,7 +222,11 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
             _startTimerInterval();
           }
         } else {
+          // অ্যাপ বন্ধ অবস্থায় ২ ঘণ্টা পার হয়ে গেলে ক্লিনআপ
           _clearActiveTaskData();
+          try {
+            await _supabase.from('profiles').update({'active_task': null, 'task_expires_at': null}).eq('id', session.user.id);
+          } catch(e) {}
         }
       }
     } catch (e) {
@@ -218,7 +236,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     }
   }
 
-  // TIMER ENGINE
   void _startTimerInterval() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -226,12 +243,20 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     });
   }
 
-  void _resyncTimerFromAbsolute() {
+  // 🔥 বুলেটপ্রুফ Resync & Auto-Pause Logic
+  void _resyncTimerFromAbsolute({bool autoPauseCheck = true}) {
     if (_sessionStartMs == null || _activeTaskId == null) return;
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final elapsed = ((nowMs - _sessionStartMs!) / 1000).floor();
+    int elapsed = ((nowMs - _sessionStartMs!) / 1000).floor();
     if (elapsed <= 0) return;
+
+    bool shouldAutoPause = false;
+    // ২ ঘণ্টা পূর্ণ হলে এক্সট্রা টাইম কাউন্ট বন্ধ করে অটো পজ সিগন্যাল দিবে
+    if (autoPauseCheck && elapsed >= 7200) {
+      elapsed = 7200; 
+      shouldAutoPause = true;
+    }
 
     final taskIndex = _todos.indexWhere((t) => t['id'] == _activeTaskId);
     if (taskIndex == -1) return;
@@ -243,6 +268,13 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
       _selfStudySeconds = _baseSelf + (sType == 'self' ? elapsed : 0);
       _classSeconds = _baseClass + (sType == 'class' ? elapsed : 0);
       _todos[taskIndex]['trackedSeconds'] = _baseTask + elapsed;
+    });
+
+    final service = FlutterBackgroundService();
+    service.invoke('updateTimer', {
+      'seconds': _todos[taskIndex]['trackedSeconds'],
+      'taskName': _todos[taskIndex]['title'],
+      'subjectName': _todos[taskIndex]['subjectName'],
     });
 
     List<dynamic> targets = _dailyMilestones['targets'] ?? [];
@@ -259,8 +291,9 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
 
     if (elapsed > 0 && elapsed % 60 == 0) _syncWorkspaceToSupabase();
 
-    if (elapsed >= 7200) {
-      _handlePause(_activeTaskId!);
+    // ইনফিনিট লুপ ছাড়া ২ ঘণ্টায় পজ
+    if (shouldAutoPause) {
+      _handlePause(_activeTaskId!); 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("2 Hours reached. Timer auto-paused. Take a break."), backgroundColor: Colors.orange));
     }
   }
@@ -280,7 +313,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     try { await _supabase.from('daily_logs').upsert(payload, onConflict: 'user_id, date_str'); } catch (e) {}
   }
 
-  // PLAY
   Future<void> _handlePlay(int taskId) async {
     if (_isProcessing) return;
     _isProcessing = true;
@@ -306,6 +338,11 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     await prefs.setInt('active_task_id', taskId);
     await prefs.setInt('active_task_start', nowMs);
 
+    final service = FlutterBackgroundService();
+    if (!await service.isRunning()) {
+      await service.startService();
+    }
+
     _startTimerInterval();
 
     final session = _supabase.auth.currentSession;
@@ -317,18 +354,25 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     _isProcessing = false;
   }
 
-  // PAUSE
+  // 🔥 সিকিউর Pause Logic (Data Loss হবে না)
   Future<void> _handlePause(int taskId) async {
     if (_activeTaskId != taskId) return;
+    
+    final service = FlutterBackgroundService();
+    service.invoke('stopService');
+
     _timer?.cancel();
-    _resyncTimerFromAbsolute();
+    _timer = null;
+    
+    // autoPauseCheck false দিয়েছি যাতে লুপ না হয়
+    _resyncTimerFromAbsolute(autoPauseCheck: false);
 
     setState(() {
       _activeTaskId = null;
       _sessionStartMs = null;
     });
 
-    _clearActiveTaskData();
+    await _clearActiveTaskData();
     await _syncWorkspaceToSupabase();
 
     final session = _supabase.auth.currentSession;
@@ -346,7 +390,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     await prefs.remove('active_task_start');
   }
 
-  // TASKS LOGIC
   List<String> _getAvailableActions(String? subjectKey) {
     if (subjectKey == null || subjectKey.isEmpty) return ['basic', 'cq', 'mcq', 'mastered'];
     final keyLower = subjectKey.toLowerCase();
@@ -417,7 +460,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     await _syncWorkspaceToSupabase();
   }
 
-  // UI FORMATTERS
   String _formatTime(int s) {
     int h = (s / 3600).floor(); int m = ((s % 3600) / 60).floor(); int sec = s % 60;
     if (h > 0) return "${h}h ${m}m ${sec}s";
@@ -454,7 +496,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 40, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             child: Column(
               children: [
                 const Center(child: Column(children: [Text("Your Study Workspace", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))), SizedBox(height: 8), Text("Plan, focus deeply, and track habits.", style: TextStyle(color: Color(0xFF64748B), fontSize: 14))])),
@@ -544,8 +586,36 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                             Wrap(
                               spacing: 8, runSpacing: 8,
                               children: [
-                                GestureDetector(onTap: () => setState(() => _newTaskStudyType = 'self'), child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: _newTaskStudyType == 'self' ? const Color(0xFF10A37F).withOpacity(0.1) : Colors.white, border: Border.all(color: _newTaskStudyType == 'self' ? const Color(0xFF10A37F).withOpacity(0.3) : Colors.grey.shade200), borderRadius: BorderRadius.circular(8)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(LucideIcons.bookOpen, size: 12, color: Color(0xFF10A37F)), const SizedBox(width: 4), Text("Self", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _newTaskStudyType == 'self' ? const Color(0xFF10A37F) : Colors.grey))]))),
-                                GestureDetector(onTap: () => setState(() => _newTaskStudyType = 'class'), child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: _newTaskStudyType == 'class' ? Colors.indigo.shade50 : Colors.white, border: Border.all(color: _newTaskStudyType == 'class' ? Colors.indigo.shade200 : Colors.grey.shade200), borderRadius: BorderRadius.circular(8)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.graduationCap, size: 12, color: Colors.indigo.shade500), const SizedBox(width: 4), Text("Class", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _newTaskStudyType == 'class' ? Colors.indigo.shade700 : Colors.grey))]))),
+                                GestureDetector(
+                                  onTap: () => setState(() => _newTaskStudyType = 'self'), 
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), 
+                                    decoration: BoxDecoration(color: _newTaskStudyType == 'self' ? const Color(0xFF10A37F).withOpacity(0.1) : Colors.white, border: Border.all(color: _newTaskStudyType == 'self' ? const Color(0xFF10A37F).withOpacity(0.3) : Colors.grey.shade200), borderRadius: BorderRadius.circular(8)), 
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min, 
+                                      children: [
+                                        const Icon(LucideIcons.bookOpen, size: 12, color: Color(0xFF10A37F)), 
+                                        const SizedBox(width: 4), 
+                                        Text("Self", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _newTaskStudyType == 'self' ? const Color(0xFF10A37F) : Colors.grey))
+                                      ]
+                                    )
+                                  )
+                                ),
+                                GestureDetector(
+                                  onTap: () => setState(() => _newTaskStudyType = 'class'), 
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), 
+                                    decoration: BoxDecoration(color: _newTaskStudyType == 'class' ? Colors.indigo.shade50 : Colors.white, border: Border.all(color: _newTaskStudyType == 'class' ? Colors.indigo.shade200 : Colors.grey.shade200), borderRadius: BorderRadius.circular(8)), 
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min, 
+                                      children: [
+                                        Icon(LucideIcons.graduationCap, size: 12, color: Colors.indigo.shade500), 
+                                        const SizedBox(width: 4), 
+                                        Text("Class", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _newTaskStudyType == 'class' ? Colors.indigo.shade700 : Colors.grey))
+                                      ]
+                                    )
+                                  )
+                                ),
                               ]
                             ),
                             const SizedBox(height: 12),
@@ -554,8 +624,48 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                               Container(
                                 padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
                                 child: Row(children: [
-                                  Expanded(child: GestureDetector(onTap: () async { final p=await SharedPreferences.getInstance(); p.setString('academic_group','science'); setState((){_activeGroup='science';_selectedSubject=null;_selectedChapter=null;}); }, child: Container(padding: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: _activeGroup == 'science' ? const Color(0xFF10A37F) : Colors.transparent, borderRadius: BorderRadius.circular(8)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(LucideIcons.graduationCap, size: 14, color: _activeGroup == 'science' ? Colors.white : Colors.grey), const SizedBox(width: 4), Text("Science", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _activeGroup == 'science' ? Colors.white : Colors.grey))])))),
-                                  Expanded(child: GestureDetector(onTap: () async { final p=await SharedPreferences.getInstance(); p.setString('academic_group','arts'); setState((){_activeGroup='arts';_selectedSubject=null;_selectedChapter=null;}); }, child: Container(padding: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: _activeGroup == 'arts' ? Colors.lightBlue : Colors.transparent, borderRadius: BorderRadius.circular(8)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(LucideIcons.palette, size: 14, color: _activeGroup == 'arts' ? Colors.white : Colors.grey), const SizedBox(width: 4), Text("Arts", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _activeGroup == 'arts' ? Colors.white : Colors.grey))])))),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () async { 
+                                        final p=await SharedPreferences.getInstance(); 
+                                        p.setString('academic_group','science'); 
+                                        setState((){_activeGroup='science';_selectedSubject=null;_selectedChapter=null;}); 
+                                      }, 
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 8), 
+                                        decoration: BoxDecoration(color: _activeGroup == 'science' ? const Color(0xFF10A37F) : Colors.transparent, borderRadius: BorderRadius.circular(8)), 
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center, 
+                                          children: [
+                                            Icon(LucideIcons.graduationCap, size: 14, color: _activeGroup == 'science' ? Colors.white : Colors.grey), 
+                                            const SizedBox(width: 4), 
+                                            Text("Science", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _activeGroup == 'science' ? Colors.white : Colors.grey))
+                                          ]
+                                        )
+                                      )
+                                    )
+                                  ),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () async { 
+                                        final p=await SharedPreferences.getInstance(); 
+                                        p.setString('academic_group','arts'); 
+                                        setState((){_activeGroup='arts';_selectedSubject=null;_selectedChapter=null;}); 
+                                      }, 
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 8), 
+                                        decoration: BoxDecoration(color: _activeGroup == 'arts' ? Colors.lightBlue : Colors.transparent, borderRadius: BorderRadius.circular(8)), 
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center, 
+                                          children: [
+                                            Icon(LucideIcons.palette, size: 14, color: _activeGroup == 'arts' ? Colors.white : Colors.grey), 
+                                            const SizedBox(width: 4), 
+                                            Text("Arts", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _activeGroup == 'arts' ? Colors.white : Colors.grey))
+                                          ]
+                                        )
+                                      )
+                                    )
+                                  ),
                                 ]),
                               ),
                               const SizedBox(height: 12),
@@ -622,7 +732,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                                 children: [
                                   GestureDetector(
                                     onTap: () => _toggleTodoDone(t),
-                                    child: Container(width: 24, height: 24, margin: const EdgeInsets.only(top: 2), decoration: BoxDecoration(color: t['isDone'] ? Colors.green : Colors.transparent, border: Border.all(color: t['isDone'] ? Colors.green : Colors.grey.shade300), borderRadius: BorderRadius.circular(6)), child: t['isDone'] ? const Icon(Icons.check, color: Colors.white, size: 16) : null),
+                                    child: Container(width: 24, height: 24, margin: const EdgeInsets.only(top: 2), decoration: BoxDecoration(color: t['isDone'] ? const Color(0xFF1E293B) : Colors.transparent, border: Border.all(color: t['isDone'] ? const Color(0xFF1E293B) : Colors.grey.shade300), borderRadius: BorderRadius.circular(6)), child: t['isDone'] ? const Icon(Icons.check, color: Colors.white, size: 16) : null),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -655,7 +765,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                                   if (!t['isDone'])
                                     GestureDetector(
                                       onTap: () => isRunning ? _handlePause(t['id']) : _handlePlay(t['id']),
-                                      child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: isRunning ? Colors.red.shade50 : Colors.lightBlue.shade50, borderRadius: BorderRadius.circular(8)), child: Icon(isRunning ? LucideIcons.pause : LucideIcons.play, size: 18, color: isRunning ? Colors.red : Colors.lightBlue)),
+                                      child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: isRunning ? Colors.grey.shade200 : Colors.grey.shade100, borderRadius: BorderRadius.circular(8)), child: Icon(isRunning ? LucideIcons.pause : LucideIcons.play, size: 18, color: const Color(0xFF1E293B))),
                                     ),
                                   const SizedBox(width: 6),
                                   GestureDetector(onTap: () => _deleteTodo(t['id']), child: Padding(padding: const EdgeInsets.all(8.0), child: Icon(LucideIcons.trash2, size: 18, color: Colors.grey.shade400))),

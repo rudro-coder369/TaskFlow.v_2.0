@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:workmanager/workmanager.dart'; 
 
 import 'providers/progress_provider.dart';
 import 'screens/login_screen.dart';
@@ -12,12 +16,56 @@ import 'screens/timer_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/leaderboard_screen.dart';
 import 'screens/account_screen.dart'; 
-import 'screens/ioi_prep_screen.dart'; 
+import 'screens/ioi_prep_screen.dart';
+import 'screens/level_up_screen.dart';
+import 'services/background_service.dart';
+
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    if (Random().nextBool()) {
+      final FlutterLocalNotificationsPlugin localNotif = FlutterLocalNotificationsPlugin();
+      
+      const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        'reminder_task',
+        'Study Reminders',
+        importance: Importance.high,
+        priority: Priority.high,
+        color: Color(0xFF607D8B),
+        showWhen: true,
+      );
+
+      const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+
+      await localNotif.show(
+        999,
+        'TaskFlow',
+        'ভুলে গেলি আমাকে? আয় পড়তে বস , পড়তে হবে , নকল আর হবে না ।', 
+        platformDetails,
+      );
+    }
+    return Future.value(true);
+  });
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Supabase Setup
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.requestNotificationsPermission();
+
+  await initializeService();
+
+  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  
+  await Workmanager().registerPeriodicTask(
+    "random_reminder_task",
+    "studyReminder",
+    frequency: const Duration(hours: 3),
+  );
+
   await Supabase.initialize(
     url: 'https://mllsdlbhxetctblonfec.supabase.co',
     anonKey: 'sb_publishable_G3pnWovIAJeeiegVifAY7Q_3Zl9PNwj',
@@ -90,6 +138,7 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
   bool _isIoiEnabled = false;
+  bool _isLevelUpEnabled = false;
 
   final List<Widget> _screens = [
     const DashboardScreen(),
@@ -105,17 +154,16 @@ class _MainNavigationState extends State<MainNavigation> {
     _checkIoiStatus();
   }
 
-  // IOI State check
   Future<void> _checkIoiStatus() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
         _isIoiEnabled = prefs.getBool('ioi_enabled') ?? false;
+        _isLevelUpEnabled = prefs.getBool('level_up_enabled') ?? false;
       });
     }
   }
 
-  // Pull-to-Refresh logic
   Future<void> _handleRefresh() async {
     await Provider.of<ProgressProvider>(context, listen: false).fetchProfileData();
     await _checkIoiStatus();
@@ -125,7 +173,6 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Top Navbar (AppBar)
       appBar: AppBar(
         title: const Row(
           children: [
@@ -135,7 +182,14 @@ class _MainNavigationState extends State<MainNavigation> {
           ],
         ),
         actions: [
-          // IOI Prep Icon
+          // 🔥 আইকন চেঞ্জ করে ফুড/হেলথ রিলেটেড 'অ্যাপল' (Apple) আর থিমের গ্রিন কালার দেওয়া হলো 
+          if (_isLevelUpEnabled)
+            IconButton(
+              icon: const Icon(LucideIcons.apple, color: Color(0xFF10A37F)),
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const LevelUpScreen()));
+              },
+            ),
           if (_isIoiEnabled)
             IconButton(
               icon: const Icon(LucideIcons.code, color: Color(0xFF10A37F)),
@@ -143,8 +197,6 @@ class _MainNavigationState extends State<MainNavigation> {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const IoiPrepScreen()));
               },
             ),
-          
-          // Account/Profile Icon
           IconButton(
             icon: const Icon(LucideIcons.user, color: Color(0xFF64748B)),
             onPressed: () async {
@@ -166,7 +218,6 @@ class _MainNavigationState extends State<MainNavigation> {
         ),
       ),
 
-      // Premium Bottom Footer 
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.9),
