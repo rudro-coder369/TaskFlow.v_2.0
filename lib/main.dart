@@ -8,7 +8,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart'; 
 
+// Providers
 import 'providers/progress_provider.dart';
+import 'providers/clan_provider.dart'; 
+import 'providers/elite_stats_provider.dart';
+import 'providers/timer_provider.dart'; // 🔥 ADDED TIMER PROVIDER
+
+// Screens
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/syllabus_screen.dart';
@@ -16,8 +22,12 @@ import 'screens/timer_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/leaderboard_screen.dart';
 import 'screens/account_screen.dart'; 
-import 'screens/ioi_prep_screen.dart';
-import 'screens/level_up_screen.dart';
+import 'screens/routine_screen.dart'; 
+import 'screens/live_room/live_room_screen.dart'; 
+import 'screens/clan/clan_dashboard_screen.dart'; 
+import 'screens/blocker/blocker_dashboard_screen.dart'; 
+
+// Services
 import 'services/background_service.dart';
 
 @pragma('vm:entry-point')
@@ -25,24 +35,16 @@ void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     if (Random().nextBool()) {
       final FlutterLocalNotificationsPlugin localNotif = FlutterLocalNotificationsPlugin();
-      
       const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
         'reminder_task',
         'Study Reminders',
         importance: Importance.high,
         priority: Priority.high,
-        color: Color(0xFF607D8B),
+        color: Color(0xFF10A37F),
         showWhen: true,
       );
-
       const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
-
-      await localNotif.show(
-        999,
-        'TaskFlow',
-        'ভুলে গেলি আমাকে? আয় পড়তে বস , পড়তে হবে , নকল আর হবে না ।', 
-        platformDetails,
-      );
+      await localNotif.show(999, 'Qaave', 'ভুলে গেলি আমাকে? আয় পড়তে বস, পড়তে হবে, নকল আর হবে না।', platformDetails);
     }
     return Future.value(true);
   });
@@ -57,7 +59,6 @@ void main() async {
       ?.requestNotificationsPermission();
 
   await initializeService();
-
   await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
   
   await Workmanager().registerPeriodicTask(
@@ -75,6 +76,9 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ProgressProvider()),
+        ChangeNotifierProvider(create: (_) => ClanProvider()), 
+        ChangeNotifierProvider(create: (_) => EliteStatsProvider()),
+        ChangeNotifierProvider(create: (_) => TimerProvider()), // 🔥 CONNECTED
       ],
       child: const MyApp(),
     ),
@@ -87,7 +91,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TaskFlow',
+      title: 'Qaave', 
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: 'Roboto', 
@@ -118,11 +122,7 @@ class AuthGate extends StatelessWidget {
           return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF10A37F))));
         }
         final session = snapshot.data?.session;
-        if (session != null) {
-          Provider.of<ProgressProvider>(context, listen: false).fetchProfileData();
-          return const MainNavigation();
-        }
-        return const LoginScreen();
+        return session != null ? const MainNavigation() : const LoginScreen();
       },
     );
   }
@@ -137,104 +137,78 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
-  bool _isIoiEnabled = false;
-  bool _isLevelUpEnabled = false;
 
   final List<Widget> _screens = [
     const DashboardScreen(),
     const SyllabusScreen(),
     const TimerScreen(),
     const HistoryScreen(),
+    const LiveRoomScreen(myCurrentChapter: null), 
     const LeaderboardScreen(),
   ];
 
   @override
   void initState() {
     super.initState();
-    _checkIoiStatus();
-  }
-
-  Future<void> _checkIoiStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _isIoiEnabled = prefs.getBool('ioi_enabled') ?? false;
-        _isLevelUpEnabled = prefs.getBool('level_up_enabled') ?? false;
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ProgressProvider>(context, listen: false).fetchProfileData();
+      Provider.of<ClanProvider>(context, listen: false).fetchMyClanData();
+    });
   }
 
   Future<void> _handleRefresh() async {
     await Provider.of<ProgressProvider>(context, listen: false).fetchProfileData();
-    await _checkIoiStatus();
-    setState(() {}); 
+    await Provider.of<ClanProvider>(context, listen: false).fetchMyClanData(); 
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(LucideIcons.checkCircle, color: Color(0xFF10A37F), size: 24),
-            SizedBox(width: 8),
-            Text("TaskFlow", style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 20)),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset('assets/qaave_logo.png', width: 36, height: 36, fit: BoxFit.cover),
+            ),
+            const SizedBox(width: 8),
+            const Text("Qaave", style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: -0.5)),
           ],
         ),
         actions: [
-          // 🔥 আইকন চেঞ্জ করে ফুড/হেলথ রিলেটেড 'অ্যাপল' (Apple) আর থিমের গ্রিন কালার দেওয়া হলো 
-          if (_isLevelUpEnabled)
-            IconButton(
-              icon: const Icon(LucideIcons.leaf, color: Color(0xFF10A37F)),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const LevelUpScreen()));
-              },
-            ),
-          if (_isIoiEnabled)
-            IconButton(
-              icon: const Icon(LucideIcons.code, color: Color(0xFF10A37F)),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const IoiPrepScreen()));
-              },
-            ),
-          IconButton(
-            icon: const Icon(LucideIcons.user, color: Color(0xFF64748B)),
-            onPressed: () async {
-              await Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen()));
-              _checkIoiStatus();
-            },
-          ),
+          IconButton(icon: const Icon(LucideIcons.calendarDays, color: Color(0xFF10A37F)), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RoutineScreen()))),
+          IconButton(icon: const Icon(LucideIcons.shieldAlert, color: Color(0xFF10A37F)), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BlockerDashboardScreen()))),
+          IconButton(icon: const Icon(LucideIcons.users, color: Color(0xFF10A37F)), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClanDashboardScreen()))),
+          IconButton(icon: const Icon(LucideIcons.user, color: Color(0xFF64748B)), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen()))),
           const SizedBox(width: 8), 
         ],
       ),
-
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
         color: const Color(0xFF10A37F),
-        backgroundColor: Colors.white,
         child: IndexedStack(
           index: _currentIndex,
           children: _screens,
         ),
       ),
-
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
-          border: Border(top: BorderSide(color: Colors.lightBlue.shade50)),
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade200)),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, -5))],
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildNavItem(0, LucideIcons.home, "Home"),
                 _buildNavItem(1, LucideIcons.bookOpen, "Syllabus"),
                 _buildNavItem(2, LucideIcons.clock, "Focus"),
                 _buildNavItem(3, LucideIcons.history, "History"),
-                _buildNavItem(4, LucideIcons.activity, "Rank"),
+                _buildNavItem(4, LucideIcons.radio, "Live"), // 🔥 Live now GREEN
+                _buildNavItem(5, LucideIcons.activity, "Rank"),
               ],
             ),
           ),
@@ -245,34 +219,17 @@ class _MainNavigationState extends State<MainNavigation> {
 
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _currentIndex == index;
+    final color = isSelected ? const Color(0xFF10A37F) : const Color(0xFF94A3B8);
+    
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(10), 
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF10A37F).withOpacity(0.1) : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              icon,
-              size: 22, 
-              color: isSelected ? const Color(0xFF10A37F) : const Color(0xFF94A3B8),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10, 
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              color: isSelected ? const Color(0xFF10A37F) : const Color(0xFF94A3B8),
-            ),
-          )
+          Icon(icon, size: 22, color: color),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 9, fontWeight: isSelected ? FontWeight.bold : FontWeight.w600, color: color)),
         ],
       ),
     );

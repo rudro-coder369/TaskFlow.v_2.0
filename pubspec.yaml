@@ -1,4 +1,4 @@
-name: task_flow
+name: Qaave
 description: "A new Flutter project."
 
 publish_to: 'none'
@@ -20,25 +20,27 @@ dependencies:
   flutter_background_service: ^5.1.0
   confetti: ^0.8.0
   flutter_local_notifications: ^17.1.2
-  workmanager: ^0.9.0+3
-  google_generative_ai: ^0.4.7
-  http: ^1.6.0
-  # image_picker মুছে ফেলা হয়েছে, কারণ আমরা প্রোফাইল পিকচার আপলোড বাদ দিয়েছি
+  device_apps: ^2.2.0
+  workmanager: ^0.9.0
+  share_plus: ^13.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  # লোগো এবং স্প্ল্যাশ স্ক্রিনের প্যাকেজ
   flutter_launcher_icons: ^0.13.1
   flutter_native_splash: ^2.3.6
 
 flutter:
   uses-material-design: true
   
-  # Assets ফোল্ডার অ্যাড করা হলো যাতে ছবিটা অ্যাপে পায়
+  # 🎨 এখানে ঠিক ২টা স্পেস এবং নিচের ফাইলগুলোতে ৪টা স্পেস দেওয়া হয়েছে
   assets:
-    - assets/
+    - assets/qaave_logo.png
+    - assets/poster1.jpg
+    - assets/poster2.jpg
+    - assets/poster3.jpg
+    - assets/poster4.jpg
 
 # ---------------------------------------------------
 # 🚀 APP LOGO CONFIGURATION
@@ -46,12 +48,12 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icon.png"
+  image_path: "assets/qaave_logo.png"
   min_sdk_android: 21
 
 flutter_native_splash:
   color: "#F8FAFC"
-  image: "assets/icon.png"
+  image: "assets/qaave_logo.png" # 👈 এখানেও লোগোর পাথ আপডেট করা হলো
   android_12:
-    image: "assets/icon.png"
+    image: "assets/qaave_logo.png"
     color: "#F8FAFC"

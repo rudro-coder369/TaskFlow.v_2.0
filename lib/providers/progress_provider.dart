@@ -5,9 +5,13 @@ class ProgressProvider with ChangeNotifier {
   Map<String, dynamic> userProfile = {'username': 'Scholar', 'email': ''};
   Map<String, dynamic> syllabusProgress = {};
   
+  // রুটিন ডেটা স্টোর করার Map
+  Map<String, List<Map<String, dynamic>>> _weeklyRoutine = {};
+  Map<String, List<Map<String, dynamic>>> get weeklyRoutine => _weeklyRoutine;
+
   final _supabase = Supabase.instance.client;
 
-  // 📥 প্রোফাইল এবং সিলেবাস ফেচ করা
+  // প্রোফাইল, সিলেবাস এবং রুটিন একসাথে ফেচ করা
   Future<void> fetchProfileData() async {
     final session = _supabase.auth.currentSession;
     if (session == null) return;
@@ -20,6 +24,13 @@ class ProgressProvider with ChangeNotifier {
           'email': session.user.email ?? '',
         };
         syllabusProgress = Map<String, dynamic>.from(data['syllabus_progress'] ?? {});
+        
+        if (data['routine'] != null) {
+          _weeklyRoutine = Map<String, List<Map<String, dynamic>>>.from(
+            (data['routine'] as Map).map((key, value) => MapEntry(key, List<Map<String, dynamic>>.from(value)))
+          );
+        }
+        
         notifyListeners();
       }
     } catch (e) {
@@ -27,7 +38,24 @@ class ProgressProvider with ChangeNotifier {
     }
   }
 
-  // 📝 সিলেবাস আপডেট করা (Syllabus Screen থেকে কল হবে)
+  // উইকলি রুটিন আপডেট করা
+  Future<void> updateRoutine(String day, List<Map<String, dynamic>> tasks) async {
+    final session = _supabase.auth.currentSession;
+    if (session == null) return;
+
+    _weeklyRoutine[day] = tasks;
+    notifyListeners();
+    
+    try {
+      await _supabase.from('profiles').update({
+        'routine': _weeklyRoutine
+      }).eq('id', session.user.id);
+    } catch (e) {
+      debugPrint("Routine Update Error: $e");
+    }
+  }
+
+  // 🔥 সিলেবাস আপডেট করা (basic, cq, mcq, mastered, revise সহ)
   Future<void> manuallyUpdateSyllabus(String subjectKey, int chapterIndex, String action) async {
     final session = _supabase.auth.currentSession;
     if (session == null) return;
@@ -39,32 +67,41 @@ class ProgressProvider with ChangeNotifier {
     String chapKey = chapterIndex.toString();
     if (!syllabusProgress[subjectKey].containsKey(chapKey)) {
       syllabusProgress[subjectKey][chapKey] = {
-        'basic': false, 'cq': false, 'mcq': false, 'mastered': false, 'isDone': false
+        'basic': false, 
+        'cq': false, 
+        'mcq': false, 
+        'mastered': false, 
+        'revise': 0, // রেভাইস কাউন্টার
+        'isDone': false
       };
     }
 
     final currentProgress = syllabusProgress[subjectKey][chapKey];
-    if (currentProgress['isDone'] == true) return;
+    
+    // যদি অ্যাকশন 'revise' হয় তবে আলাদা লজিক, অন্যথায় Bool ফ্ল্যাগ আপডেট
+    if (action == 'revise') {
+      int currentReviseCount = currentProgress['revise'] ?? 0;
+      currentProgress['revise'] = currentReviseCount + 1;
+    } else {
+      currentProgress[action] = true;
+    }
 
-    // অ্যাকশন ট্রু করা (যেমন: basic = true)
-    currentProgress[action] = true;
-
-    // ৪টা ডান হলে চ্যাপ্টার কমপ্লিট
-    if (currentProgress['basic'] == true && currentProgress['mastered'] == true) {
-      // English/ICT logic bypass (can be enhanced based on your needs)
-      if (currentProgress['cq'] == true && currentProgress['mcq'] == true) {
-         currentProgress['isDone'] = true;
-      } else if (subjectKey.toLowerCase().contains('english') || subjectKey.toLowerCase().contains('ict')) {
-         currentProgress['isDone'] = true;
-      } else if ((subjectKey.toLowerCase().contains('bangla_2nd') || subjectKey.toLowerCase().contains('bangla2')) && currentProgress['mcq'] == true) {
-         currentProgress['isDone'] = true;
+    // লজিক চেক করে চ্যাপ্টার কমপ্লিট (isDone) মার্ক করা
+    if (currentProgress['isDone'] != true) {
+      if (subjectKey.toLowerCase().contains('english') || subjectKey.toLowerCase().contains('ict')) {
+        if (currentProgress['basic'] == true) currentProgress['isDone'] = true;
+      } else if (subjectKey.toLowerCase().contains('bangla_2nd') || subjectKey.toLowerCase().contains('bangla2')) {
+        if (currentProgress['basic'] == true && currentProgress['mcq'] == true) currentProgress['isDone'] = true;
+      } else {
+        if (currentProgress['basic'] == true && currentProgress['cq'] == true && currentProgress['mcq'] == true) {
+          currentProgress['isDone'] = true;
+        }
       }
     }
 
     syllabusProgress[subjectKey][chapKey] = currentProgress;
     notifyListeners();
 
-    // Supabase এ সেভ করা
     try {
       await _supabase.from('profiles').update({
         'syllabus_progress': syllabusProgress,
@@ -72,5 +109,10 @@ class ProgressProvider with ChangeNotifier {
     } catch (e) {
       debugPrint("Syllabus Update Error: $e");
     }
+  }
+
+  // আলাদাভাবে রিভাইজ কাউন্টার বাড়ানোর ফাংশন (দরকার হলে ইউজ করবি)
+  Future<void> incrementRevise(String subjectKey, int chapterIndex) async {
+    await manuallyUpdateSyllabus(subjectKey, chapterIndex, 'revise');
   }
 }

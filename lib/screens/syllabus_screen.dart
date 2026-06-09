@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/initial_data.dart';
 import '../providers/progress_provider.dart'; 
 
@@ -13,29 +13,45 @@ class SyllabusScreen extends StatefulWidget {
 }
 
 class _SyllabusScreenState extends State<SyllabusScreen> {
-  String activeGroup = 'science';
+  String _activeGroup = 'science'; 
+  String _activeClass = '9'; 
+  bool _isLoading = true;
   Map<String, bool> expandedSubject = {};
+
+  final _supabase = Supabase.instance.client;
 
   @override
   void initState() {
     super.initState();
-    _loadGroup();
+    _fetchUserAcademicDetails();
   }
 
-  Future<void> _loadGroup() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      activeGroup = prefs.getString('academic_group') ?? 'science';
-    });
-  }
+  Future<void> _fetchUserAcademicDetails() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId != null) {
+        final profileData = await _supabase
+            .from('profiles')
+            .select('academic_class, academic_group')
+            .eq('id', userId)
+            .maybeSingle();
 
-  Future<void> _setGroup(String group) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('academic_group', group);
-    setState(() {
-      activeGroup = group;
-      expandedSubject.clear(); // গ্রুপ চেঞ্জ করলে সব কলাপ্স হয়ে যাবে
-    });
+        if (profileData != null && mounted) {
+          setState(() {
+            _activeGroup = (profileData['academic_group']?.toString() ?? 'science').toLowerCase();
+            _activeClass = profileData['academic_class']?.toString() ?? '9';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching academic details: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void toggleSubject(String key) {
@@ -44,103 +60,79 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
     });
   }
 
+  // 🧠 Core Actions
+  List<String> getCoreActions(String subjectKey) {
+    if (subjectKey.isEmpty) return ['basic', 'cq', 'mcq'];
+    final keyLower = subjectKey.toLowerCase();
+    
+    if (keyLower.contains('english') || keyLower.contains('ict')) {
+      return ['basic'];
+    }
+    if (keyLower.contains('bangla_2nd') || keyLower.contains('bangla2')) {
+      return ['basic', 'mcq'];
+    }
+    return ['basic', 'cq', 'mcq'];
+  }
+
+  // 🔥 Progress Calculation
   int calculateSubjectProgress(String subjectKey, List chapters, Map<String, dynamic> syllabusProgress) {
     if (chapters.isEmpty) return 0;
     final progress = syllabusProgress[subjectKey] ?? {};
     int completed = 0;
+    final coreActions = getCoreActions(subjectKey);
+
     for (int i = 0; i < chapters.length; i++) {
-      if (progress[i.toString()]?['isDone'] == true) {
-        completed++;
+      bool isChapterDone = true;
+      for (var action in coreActions) {
+        if (progress[i.toString()]?[action] != true) {
+          isChapterDone = false;
+          break;
+        }
       }
+      if (isChapterDone) completed++;
     }
     return ((completed / chapters.length) * 100).round();
   }
 
-  // 🧠 DYNAMIC ACTIONS LOGIC based on subject
-  List<String> getAvailableActions(String subjectKey) {
-    if (subjectKey.isEmpty) return ['basic', 'cq', 'mcq', 'mastered'];
-    final keyLower = subjectKey.toLowerCase();
-    
-    if (keyLower.contains('english') || keyLower.contains('ict')) {
-      return ['basic', 'mastered'];
-    }
-    if (keyLower.contains('bangla_2nd') || keyLower.contains('bangla2')) {
-      return ['basic', 'mcq', 'mastered'];
-    }
-    return ['basic', 'cq', 'mcq', 'mastered'];
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8FAFC),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF10A37F)),
+        ),
+      );
+    }
+
     final progressProvider = Provider.of<ProgressProvider>(context);
     final syllabusProgress = progressProvider.syllabusProgress;
 
-    // Filter Subjects
     final filteredSubjects = InitialData.academics.entries.where((entry) {
       final groups = entry.value['groups'] as List<String>;
-      return groups.contains(activeGroup);
+      return groups.map((g) => g.toLowerCase()).contains(_activeGroup);
     }).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: SingleChildScrollView(
-        // 🔥 FIX: Top padding reduced and extra headers removed
-        padding: const EdgeInsets.only(top: 16, bottom: 100, left: 16, right: 16),
+      body: filteredSubjects.isEmpty 
+        ? const Center(
+            child: Text(
+              "No syllabus found for your group.",
+              style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+            ),
+          )
+        : SingleChildScrollView(
+        padding: const EdgeInsets.only(top: 24, bottom: 100, left: 16, right: 16),
         child: Column(
           children: [
-            // Group Toggle (ডাইরেক্ট এখান থেকে শুরু)
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.6), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.lightBlue.shade50)),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _setGroup('science'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(color: activeGroup == 'science' ? const Color(0xFF10A37F) : Colors.transparent, borderRadius: BorderRadius.circular(12), boxShadow: activeGroup == 'science' ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))] : []),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(LucideIcons.graduationCap, size: 18, color: activeGroup == 'science' ? Colors.white : const Color(0xFF64748B)),
-                            const SizedBox(width: 8),
-                            Text("Science", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: activeGroup == 'science' ? Colors.white : const Color(0xFF64748B))),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _setGroup('arts'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(color: activeGroup == 'arts' ? Colors.lightBlue : Colors.transparent, borderRadius: BorderRadius.circular(12), boxShadow: activeGroup == 'arts' ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))] : []),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(LucideIcons.palette, size: 18, color: activeGroup == 'arts' ? Colors.white : const Color(0xFF64748B)),
-                            const SizedBox(width: 8),
-                            Text("Arts", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: activeGroup == 'arts' ? Colors.white : const Color(0xFF64748B))),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Subject List
             ...filteredSubjects.map((entry) {
               final key = entry.key;
               final subject = entry.value;
               final chapters = subject['chapters'] as List<String>;
               final int progressPercentage = calculateSubjectProgress(key, chapters, syllabusProgress);
               final bool isExpanded = expandedSubject[key] ?? false;
-              final subjectActions = getAvailableActions(key);
+              final coreActions = getCoreActions(key);
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -154,15 +146,12 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                         padding: const EdgeInsets.all(20),
                         child: Row(
                           children: [
-                            // 1. Icon / Collapse Button
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(color: isExpanded ? const Color(0xFF10A37F).withOpacity(0.1) : Colors.white, border: isExpanded ? null : Border.all(color: Colors.lightBlue.shade50), borderRadius: BorderRadius.circular(12)),
                               child: Icon(isExpanded ? LucideIcons.chevronDown : LucideIcons.chevronRight, size: 20, color: isExpanded ? const Color(0xFF10A37F) : const Color(0xFF94A3B8)),
                             ),
                             const SizedBox(width: 16),
-                            
-                            // 2. Subject Name
                             Expanded(
                               child: Row(
                                 children: [
@@ -180,8 +169,6 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                               ),
                             ),
                             const SizedBox(width: 12),
-
-                            // 3. Progress Bar 
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -205,7 +192,6 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                       ),
                     ),
 
-                    // Chapters List
                     if (isExpanded)
                       Container(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -215,48 +201,123 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                             int idx = chapEntry.key;
                             String chapterName = chapEntry.value;
                             
-                            final chapProgress = syllabusProgress[key]?[idx.toString()] ?? {'basic': false, 'cq': false, 'mcq': false, 'mastered': false, 'isDone': false};
-                            final bool isDone = chapProgress['isDone'] == true;
+                            final chapProgress = syllabusProgress[key]?[idx.toString()] ?? {};
+                            
+                            bool isDone = true;
+                            for (var action in coreActions) {
+                              if (chapProgress[action] != true) {
+                                isDone = false;
+                                break;
+                              }
+                            }
+
+                            final bool isMastered = chapProgress['mastered'] == true;
+                            final int reviseCount = chapProgress['revise'] ?? 0;
 
                             return Container(
                               margin: const EdgeInsets.only(top: 12),
                               padding: const EdgeInsets.all(16),
                               width: double.infinity, 
-                              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.lightBlue.shade50)),
+                              decoration: BoxDecoration(
+                                color: isMastered ? const Color(0xFFF0FDF4) : Colors.white, 
+                                borderRadius: BorderRadius.circular(16), 
+                                border: Border.all(color: isMastered ? const Color(0xFF10A37F).withOpacity(0.4) : Colors.lightBlue.shade50)
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  // 🔥 FIXED: Strikethrough bug solved & colors made aesthetic
                                   Text(
                                     "${idx + 1}. $chapterName",
-                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDone ? const Color(0xFF94A3B8) : const Color(0xFF334155), decoration: isDone ? TextDecoration.lineThrough : null),
+                                    style: TextStyle(
+                                      fontSize: 14, 
+                                      fontWeight: FontWeight.w600, 
+                                      color: isMastered ? const Color(0xFF166534) : (isDone ? const Color(0xFF94A3B8) : const Color(0xFF334155)), 
+                                      decoration: (isDone && !isMastered) ? TextDecoration.lineThrough : TextDecoration.none,
+                                    ),
                                   ),
                                   const SizedBox(height: 12),
-                                  isDone
-                                      ? Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                          decoration: BoxDecoration(color: const Color(0xFF10A37F).withOpacity(0.1), border: Border.all(color: const Color(0xFF10A37F).withOpacity(0.2)), borderRadius: BorderRadius.circular(8)),
-                                          child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.check, size: 14, color: Color(0xFF10A37F)), SizedBox(width: 4), Text("DONE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10A37F)))]),
-                                        )
-                                      : Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: subjectActions.map((action) {
-                                            bool actionDone = chapProgress[action] == true;
-                                            return InkWell(
-                                              onTap: () => progressProvider.manuallyUpdateSyllabus(key, idx, action),
-                                              borderRadius: BorderRadius.circular(8),
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                                decoration: BoxDecoration(
-                                                  color: actionDone ? const Color(0xFF10A37F).withOpacity(0.1) : Colors.transparent,
-                                                  border: Border.all(color: actionDone ? const Color(0xFF10A37F).withOpacity(0.2) : Colors.grey.shade300),
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Text(action.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5, color: actionDone ? const Color(0xFF10A37F) : const Color(0xFF64748B))),
+                                  
+                                  isDone 
+                                    ? Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        children: [
+                                          // DONE Badge
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                            decoration: BoxDecoration(color: const Color(0xFF10A37F), borderRadius: BorderRadius.circular(20)),
+                                            child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.checkCheck, size: 12, color: Colors.white), SizedBox(width: 4), Text("DONE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white))]),
+                                          ),
+                                          
+                                          // MASTERED Toggle
+                                          InkWell(
+                                            onTap: () => progressProvider.manuallyUpdateSyllabus(key, idx, 'mastered'),
+                                            borderRadius: BorderRadius.circular(20),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: isMastered ? const Color(0xFF16A34A) : Colors.transparent,
+                                                border: Border.all(color: isMastered ? const Color(0xFF16A34A) : Colors.grey.shade300),
+                                                borderRadius: BorderRadius.circular(20),
                                               ),
-                                            );
-                                          }).toList(),
-                                        )
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min, 
+                                                children: [
+                                                  Icon(LucideIcons.flame, size: 12, color: isMastered ? Colors.white : const Color(0xFF64748B)), 
+                                                  const SizedBox(width: 4), 
+                                                  Text("MASTERED", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isMastered ? Colors.white : const Color(0xFF64748B)))
+                                                ]
+                                              ),
+                                            ),
+                                          ),
+
+                                          // 🔥 NEW: REVISE with [+] icon for clear UX
+                                          InkWell(
+                                            onTap: () => progressProvider.incrementRevise(key, idx),
+                                            borderRadius: BorderRadius.circular(20),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: reviseCount > 0 ? Colors.purple.shade50 : Colors.transparent,
+                                                border: Border.all(color: reviseCount > 0 ? Colors.purple.shade200 : Colors.grey.shade300),
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min, 
+                                                children: [
+                                                  Icon(LucideIcons.refreshCw, size: 12, color: reviseCount > 0 ? Colors.purple.shade600 : const Color(0xFF64748B)), 
+                                                  const SizedBox(width: 4), 
+                                                  Text(reviseCount > 0 ? "${reviseCount}X REVISED" : "REVISE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: reviseCount > 0 ? Colors.purple.shade700 : const Color(0xFF64748B))),
+                                                  const SizedBox(width: 4),
+                                                  Icon(LucideIcons.plus, size: 12, color: reviseCount > 0 ? Colors.purple.shade600 : const Color(0xFF64748B)), 
+                                                ]
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: coreActions.map((action) {
+                                          bool actionDone = chapProgress[action] == true;
+                                          return InkWell(
+                                            onTap: () => progressProvider.manuallyUpdateSyllabus(key, idx, action),
+                                            borderRadius: BorderRadius.circular(20),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: actionDone ? const Color(0xFF10A37F).withOpacity(0.1) : Colors.transparent,
+                                                border: Border.all(color: actionDone ? const Color(0xFF10A37F).withOpacity(0.3) : Colors.grey.shade300),
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Text(action.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5, color: actionDone ? const Color(0xFF10A37F) : const Color(0xFF64748B))),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      )
                                 ],
                               ),
                             );
